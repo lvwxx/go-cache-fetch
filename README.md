@@ -4,7 +4,11 @@
 
 ## 使用
 
+### 下载
+
+```bash
 go get github.com/lvwxx/go-cache-fetch
+```
 
 cache 客户端以 redis 为例
 
