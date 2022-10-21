@@ -4,6 +4,8 @@
 
 ## 使用
 
+go get github.com/lvwxx/go-cache-fetch
+
 cache 客户端以 redis 为例
 
 ```golang
