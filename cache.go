@@ -54,7 +54,7 @@ func (c *Cache) Fetch(ctx context.Context, key string, result interface{}, ex ti
 
 	returnValue.Set(reflect.ValueOf(res))
 
-	return true, nil
+	return false, nil
 }
 
 func (c *Cache) Get(ctx context.Context, key string, returnValue interface{}) (exist bool, err error) {
