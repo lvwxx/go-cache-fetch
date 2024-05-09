@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmihailenco/msgpack"
 )
 
 type cacheTest struct {
@@ -32,6 +33,10 @@ func getData() (data int64, err error) {
 	return time.Now().UnixNano(), nil
 }
 
+func getZeroData() (data string, err error) {
+	return "", nil
+}
+
 func TestFetch(t *testing.T) {
 	client := &cacheTest{}
 	ctx := context.TODO()
@@ -51,7 +56,7 @@ func TestFetch(t *testing.T) {
 				return getData()
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, true, ok)
+			assert.Equal(t, false, ok)
 			results = append(results, result)
 		}()
 	}
@@ -61,4 +66,43 @@ func TestFetch(t *testing.T) {
 
 	result := cache.cacheClient.Get(ctx, "test")
 	assert.Equal(t, "123", result)
+}
+
+type cacheIgnoreZero struct {
+	n []byte
+}
+
+func (ct *cacheIgnoreZero) Get(ctx context.Context, key string) string {
+	return string(ct.n)
+}
+
+func (ct *cacheIgnoreZero) Set(ctx context.Context, key string, value interface{}, ex time.Duration) error {
+	ct.n, _ = msgpack.Marshal("")
+	return nil
+}
+
+func (ct *cacheIgnoreZero) Del(ctx context.Context, key string) error {
+	ct.n = []byte("")
+	return nil
+}
+
+func TestFetchIgnoreZero(t *testing.T) {
+	client := &cacheIgnoreZero{}
+	ctx := context.TODO()
+
+	cache := NewCache(client, "test")
+
+	var result string
+	ok, err := cache.FetchIgnoreZero(ctx, "test", &result, time.Minute, func() (rawResult interface{}, err error) {
+		return getZeroData()
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, false, ok)
+
+	ok, err = cache.FetchIgnoreZero(ctx, "test", &result, time.Minute, func() (rawResult interface{}, err error) {
+		return getZeroData()
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, false, ok)
 }

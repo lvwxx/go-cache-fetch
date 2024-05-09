@@ -57,6 +57,40 @@ func (c *Cache) Fetch(ctx context.Context, key string, result interface{}, ex ti
 	return false, nil
 }
 
+func (c *Cache) FetchIgnoreZero(ctx context.Context, key string, result interface{}, ex time.Duration, fn func() (rawResult interface{}, err error)) (ok bool, err error) {
+	returnValue := reflect.ValueOf(result).Elem()
+
+	exist, err := c.Get(ctx, key, &result)
+	if err != nil {
+		return false, err
+	}
+	if exist {
+		if returnValue.IsZero() {
+			// 删除老的缓存
+			c.Delete(ctx, key)
+		} else {
+			return true, nil
+		}
+	}
+
+	// 防止缓存穿透
+	res, err, _ := c.g.Do(key, func() (interface{}, error) {
+		data, err := fn()
+		if err != nil {
+			return data, err
+		}
+		err = c.Set(ctx, key, data, ex)
+		return data, err
+	})
+	if err != nil {
+		return
+	}
+
+	returnValue.Set(reflect.ValueOf(res))
+
+	return false, nil
+}
+
 func (c *Cache) Get(ctx context.Context, key string, returnValue interface{}) (exist bool, err error) {
 	result := c.cacheClient.Get(ctx, c.cacheKey(key))
 	if result == "" {
